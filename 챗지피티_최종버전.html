@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#b2c1cc">
+  <title>골든 리트리버 쓰다듬기</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #3d4652;
+      --muted: #82909a;
+      --gold: #df9d43;
+      --gold-deep: #c77b27;
+      --panel: rgba(255, 255, 255, .78);
+      --shadow: 0 18px 55px rgba(79, 103, 125, .12);
+    }
+    * { box-sizing: border-box; }
+    html { min-height: 100%; }
+    /* 화면 최상단에 반투명 막을 겹쳐 낮 모드의 뒷배경(뷰포트 배경)까지
+       페이지 전체를 동일한 80% 밝기로 표시합니다. 클릭·터치 입력은 통과합니다. */
+    html::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      background: rgba(0, 0, 0, .2);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 1.2s ease;
+    }
+    html.is-day-dim::after { opacity: 1; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      background: linear-gradient(180deg, #eaf7ff 0%, #fff8e9 100%);
+      transition: background 1.2s ease, color 1s ease;
+      overflow-x: hidden;
+    }
+    body.is-night {
+      color: #e8edf8;
+      background: linear-gradient(180deg, #111c38 0%, #26375a 58%, #364563 100%);
+    }
+    button { font: inherit; }
+    .app-shell {
+      width: min(100% - 40px, 1000px);
+      margin: 0 auto;
+      padding: 28px 0 24px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand { display: flex; align-items: center; gap: 13px; min-width: 0; }
+    .brand-mark {
+      width: 48px; height: 48px; flex: 0 0 48px;
+      display: grid; place-items: center;
+      border-radius: 17px;
+      color: #fff;
+      font-size: 24px;
+      background: linear-gradient(145deg, #f4c778, #df9440);
+      box-shadow: 0 8px 20px rgba(208, 143, 62, .25);
+    }
+    .brand-kicker { margin: 0 0 3px; font-size: 11px; letter-spacing: .13em; color: #a47a4d; font-weight: 800; }
+    h1 { margin: 0; font-size: clamp(19px, 3vw, 25px); letter-spacing: -.04em; line-height: 1.2; color: #4d4a43; }
+    .is-night h1 { color: #f4f0e8; }
+    .sound-button {
+      flex: 0 0 auto;
+      border: 1px solid rgba(255,255,255,.78);
+      border-radius: 999px;
+      min-height: 44px;
+      padding: 0 17px;
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      cursor: pointer;
+      color: #5a6670;
+      background: rgba(255,255,255,.74);
+      box-shadow: 0 7px 22px rgba(67, 90, 109, .08);
+      transition: transform .2s ease, background .3s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .sound-button:hover { transform: translateY(-2px); background: #fff; }
+    .sound-button:active { transform: translateY(0) scale(.98); }
+    .sound-button svg { width: 18px; height: 18px; }
+    .is-night .sound-button { color: #edf2ff; border-color: rgba(255,255,255,.14); background: rgba(255,255,255,.1); }
+    .mission-card {
+      padding: 17px 21px 15px;
+      border: 1px solid rgba(255,255,255,.88);
+      border-radius: 21px;
+      background: var(--panel);
+      box-shadow: 0 8px 30px rgba(67, 90, 109, .07);
+      color: #56616b;
+      backdrop-filter: blur(12px);
+    }
+    .mission-heading, .progress-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .mission-label { display: block; margin-bottom: 3px; font-size: 11px; letter-spacing: .09em; font-weight: 800; color: #b18450; }
+    .mission-heading h2 { margin: 0; font-size: 16px; letter-spacing: -.03em; color: #51565b; }
+    .progress-number { font-size: 27px; font-weight: 850; letter-spacing: -.06em; color: #d48a35; font-variant-numeric: tabular-nums; }
+    .progress-track { height: 11px; margin: 12px 0 9px; overflow: hidden; border-radius: 20px; background: #f0e8dd; box-shadow: inset 0 1px 2px rgba(92, 70, 43, .07); }
+    .progress-fill { width: 0%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #f2c76f, #e69a43); transition: width .45s cubic-bezier(.2,.7,.2,1); }
+    .progress-foot { color: #89939a; font-size: 11px; }
+    #statusText { color: #7d858b; font-weight: 700; flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .progress-foot > span:last-child { flex: 0 0 auto; white-space: nowrap; }
+    .is-night .mission-card { background: rgba(22, 33, 59, .58); border-color: rgba(255,255,255,.1); color: #d6deed; }
+    .is-night .mission-heading h2, .is-night #statusText { color: #e8edf8; }
+    .is-night .progress-track { background: rgba(255,255,255,.14); }
+    .is-night .progress-foot { color: #aab8d0; }
+    .play-area {
+      position: relative;
+      isolation: isolate;
+      flex: 1;
+      min-height: 500px;
+      overflow: hidden;
+      border-radius: 30px;
+      background: linear-gradient(180deg, #bfe7ff 0%, #e8f7ff 63%, #f9eacb 100%);
+      box-shadow: var(--shadow);
+      transition: background 1.2s ease, box-shadow 1s ease;
+    }
+    .is-night .play-area {
+      background: linear-gradient(180deg, #17264a 0%, #34486e 66%, #59627a 100%);
+      box-shadow: 0 18px 55px rgba(4, 9, 27, .22);
+    }
+    .scene-sun, .scene-moon { position: absolute; z-index: -1; border-radius: 50%; pointer-events: none; }
+    .scene-sun { width: 76px; height: 76px; top: 62px; right: 13%; background: #ffe49b; box-shadow: 0 0 0 14px rgba(255, 237, 184, .22), 0 0 55px rgba(255, 226, 145, .7); }
+    .scene-moon { display: none; width: 62px; height: 62px; top: 58px; right: 13%; background: #f4efcf; box-shadow: 0 0 0 12px rgba(234,239,255,.08), 0 0 48px rgba(227,236,255,.2); }
+    .scene-moon::after { content: ""; position: absolute; width: 55px; height: 55px; border-radius: 50%; background: #24375d; top: -9px; left: 17px; }
+    .is-night .scene-sun { display: none; }
+    .is-night .scene-moon { display: block; }
+    .cloud { position: absolute; z-index: -1; width: 118px; height: 30px; border-radius: 40px; background: rgba(255,255,255,.57); filter: blur(.2px); }
+    .cloud::before, .cloud::after { content: ""; position: absolute; bottom: 7px; border-radius: 50%; background: inherit; }
+    .cloud::before { width: 44px; height: 44px; left: 18px; }
+    .cloud::after { width: 57px; height: 57px; left: 49px; }
+    .cloud-one { top: 116px; left: 11%; transform: scale(.8); }
+    .cloud-two { top: 205px; right: 9%; transform: scale(.54); opacity: .65; }
+    .is-night .cloud { display: none; }
+    .sky-stars { position: absolute; inset: 0; z-index: -1; display: none; pointer-events: none; }
+    .is-night .sky-stars { display: block; }
+    .sky-star { position: absolute; color: rgba(255,255,255,.88); font-size: 13px; animation: twinkle 2.8s ease-in-out infinite alternate; }
+    .sky-star:nth-child(2n) { animation-delay: -1.3s; font-size: 9px; }
+    .sky-star:nth-child(3n) { animation-delay: -.7s; }
+    @keyframes twinkle { from { opacity: .35; transform: scale(.75); } to { opacity: 1; transform: scale(1.2); } }
+    .scene-intro { position: absolute; top: 26px; left: 28px; z-index: 2; width: calc(100% - 56px); max-width: 420px; }
+    .scene-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .time-chip { display: inline-flex; flex: 0 0 146px; width: 146px; height: 30px; justify-content: center; align-items: center; gap: 6px; padding: 0 8px; border-radius: 999px; color: #826342; background: rgba(255,255,255,.7); font-size: 11px; font-weight: 800; letter-spacing: .03em; white-space: nowrap; }
+    .is-night .time-chip { color: #dce5ff; background: rgba(255,255,255,.12); }
+    .day-night-button {
+      flex: 0 0 88px; width: 88px; min-height: 30px; height: 30px; padding: 0 6px; border: 1px solid rgba(255,255,255,.75);
+      border-radius: 999px; color: #5d7180; background: rgba(255,255,255,.72);
+      font-size: 11px; font-weight: 800; cursor: pointer;
+      box-shadow: 0 4px 14px rgba(67, 90, 109, .07);
+      transition: transform .2s ease, background .25s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .day-night-button:hover { transform: translateY(-1px); background: #fff; }
+    .day-night-button:active { transform: scale(.97); }
+    .day-night-button:focus-visible { outline: 3px solid rgba(255, 205, 117, .85); outline-offset: 3px; }
+    .is-night .day-night-button { color: #edf2ff; border-color: rgba(255,255,255,.18); background: rgba(255,255,255,.12); }
+    .is-night .day-night-button:hover { background: rgba(255,255,255,.2); }
+    .scene-message { width: 100%; height: 2.4em; margin: 9px 0 0; color: #5c7180; font-size: 14px; line-height: 1.2em; font-weight: 700; letter-spacing: -.02em; text-shadow: 0 1px 8px rgba(255,255,255,.3); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+    .is-night .scene-message { color: #e1e7f6; text-shadow: 0 1px 8px rgba(0,0,0,.12); }
+    .dog-wrap { position: absolute; z-index: 2; left: 50%; bottom: 25px; width: min(72%, 490px); transform: translateX(-50%); display: flex; justify-content: center; }
+    .dog-svg { display: block; width: 100%; height: auto; max-height: 455px; overflow: visible; touch-action: none; user-select: none; -webkit-user-select: none; }
+    .dog-svg .night-dog { display: none; transform-box: view-box; transform-origin: 50% 50%; transform: scale(.70); }
+    .is-night .dog-svg .day-dog { display: none; }
+    .is-night .dog-svg .night-dog { display: inline; }
+    .dog-svg .head-group { transform-box: fill-box; transform-origin: 50% 88%; transition: transform .32s ease; }
+    .dog-svg.is-happy .day-dog .head-group { transform: rotate(-5deg) translateY(-3px); }
+    .dog-svg.is-happy .night-dog .head-group { transform: rotate(-4deg) translateY(-17px); }
+    .dog-svg .happy-face { opacity: 0; transition: opacity .2s ease; }
+    .dog-svg.is-happy .happy-face { opacity: 1; }
+    .dog-svg.is-happy .normal-face { opacity: 0; }
+    .dog-svg .sleep-face { opacity: 1; transition: opacity .2s ease; }
+    .dog-svg.is-happy .sleep-face { opacity: 0; }
+    .dog-svg .awake-face { opacity: 0; transition: opacity .2s ease; }
+    .dog-svg.is-happy .awake-face { opacity: 1; }
+    .dog-svg .zzz { transform-box: fill-box; transform-origin: center; animation: zzzFloat 2.5s ease-in-out infinite; }
+    .dog-svg .zzz-two { animation-delay: -.8s; }
+    .dog-svg.is-happy .zzz { opacity: 0; }
+    @keyframes zzzFloat { 0%,100% { transform: translateY(4px); opacity: .55; } 50% { transform: translateY(-8px); opacity: 1; } }
+    .ground-shadow { position: absolute; z-index: 1; left: 50%; bottom: 20px; width: min(55%, 360px); height: 35px; transform: translateX(-50%); border-radius: 50%; background: rgba(110, 104, 85, .14); filter: blur(12px); }
+    .is-night .ground-shadow { background: rgba(7, 14, 30, .24); }
+    .pet-hint { position: absolute; z-index: 3; left: 50%; bottom: 17px; transform: translateX(-50%); white-space: nowrap; color: rgba(96, 111, 117, .8); font-size: 11px; letter-spacing: .02em; }
+    .is-night .pet-hint { color: rgba(231,238,255,.68); }
+    .sparkle-layer { position: absolute; inset: 0; z-index: 5; overflow: hidden; pointer-events: none; }
+    .sparkle { position: absolute; line-height: 1; color: #fff5b2; text-shadow: 0 0 9px rgba(255,255,255,.9), 0 0 16px #f7ce7a; animation: sparkleUp .9s ease-out forwards; }
+    @keyframes sparkleUp { 0% { opacity: 0; transform: translate(-50%,-20%) scale(.25) rotate(0); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-110%) scale(1.2) rotate(65deg); } }
+    .celebration { position: fixed; inset: 0; z-index: 20; pointer-events: none; overflow: hidden; display: none; }
+    .celebration.active { display: block; }
+    .heart { position: absolute; bottom: -50px; color: #f07c96; text-shadow: 0 5px 18px rgba(255,255,255,.45); animation: heartBurst var(--duration, 3.6s) cubic-bezier(.15,.6,.3,1) forwards; opacity: 0; }
+    @keyframes heartBurst { 0% { opacity: 0; transform: translate3d(0,0,0) scale(.35) rotate(0); } 12% { opacity: 1; } 100% { opacity: 0; transform: translate3d(var(--drift, 20px),-110vh,0) scale(1.2) rotate(var(--spin, 35deg)); } }
+    .footer-note { margin: -5px 0 0; text-align: center; color: #9ba6aa; font-size: 11px; }
+    .is-night .footer-note { color: #aab8d0; }
+    @media (min-width: 760px) {
+      .app-shell { padding-top: 34px; gap: 18px; }
+      .play-area { min-height: 540px; }
+      .dog-wrap { width: min(57%, 480px); bottom: 21px; }
+      .scene-intro { top: 30px; left: 34px; }
+    }
+    @media (max-width: 560px) {
+      .app-shell { width: min(100% - 24px, 480px); padding: 16px 0 15px; gap: 13px; }
+      .brand { gap: 9px; }
+      .brand-mark { width: 41px; height: 41px; flex-basis: 41px; border-radius: 14px; font-size: 21px; }
+      .brand-kicker { font-size: 9px; }
+      h1 { font-size: 17px; }
+      .sound-button { min-height: 40px; padding: 0 12px; gap: 6px; font-size: 11px; }
+      .sound-button svg { width: 16px; height: 16px; }
+      .mission-card { padding: 13px 15px 12px; border-radius: 17px; }
+      .mission-heading h2 { font-size: 14px; }
+      .progress-number { font-size: 24px; }
+      .progress-track { height: 9px; margin: 9px 0 7px; }
+      .progress-foot { font-size: 10px; }
+      .play-area { min-height: clamp(430px, 58vh, 540px); border-radius: 23px; }
+      .scene-intro { top: 18px; left: 17px; width: calc(100% - 34px); max-width: none; }
+      .time-chip { flex-basis: 136px; width: 136px; height: 28px; min-height: 28px; padding: 0 6px; font-size: 10px; }
+      .day-night-button { flex-basis: 82px; width: 82px; min-height: 28px; height: 28px; padding: 0 5px; font-size: 10px; }
+      .scene-message { height: 2.4em; margin-top: 7px; font-size: 12px; line-height: 1.2em; }
+      .scene-sun { width: 55px; height: 55px; top: 67px; right: 11%; }
+      .scene-moon { width: 48px; height: 48px; top: 62px; right: 12%; }
+      .scene-moon::after { width: 43px; height: 43px; top: -7px; left: 13px; }
+      .dog-wrap { width: min(92%, 410px); bottom: 31px; }
+      .pet-hint { bottom: 13px; font-size: 10px; }
+      .ground-shadow { bottom: 26px; }
+      .footer-note { font-size: 10px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">♡</div>
+        <div>
+          <p class="brand-kicker">작은 교감, 큰 행복</p>
+          <h1>골든 리트리버 쓰다듬기</h1>
+        </div>
+      </div>
+      <button class="sound-button" id="soundButton" type="button" aria-pressed="false" aria-label="배경음 켜기">
+        <svg id="soundIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 10v4h4l5 4V6l-5 4H4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+          <path d="M17 9.5a4 4 0 0 1 0 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          <path d="M19.5 7a7.5 7.5 0 0 1 0 10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+        <span id="soundLabel">배경음 켜기</span>
+      </button>
+    </header>
+
+    <section class="mission-card" aria-label="오늘의 기쁨 게이지">
+      <div class="mission-heading">
+        <div>
+          <span class="mission-label">오늘의 작은 미션</span>
+          <h2>기쁨 게이지</h2>
+        </div>
+        <strong class="progress-number" id="progressNumber">0%</strong>
+      </div>
+      <div class="progress-track" id="progressTrack" role="progressbar" aria-label="기쁨 게이지" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="progress-foot">
+        <span id="statusText" aria-live="polite">머리를 살살 쓰다듬어 주세요.</span>
+        <span>오늘의 행복을 100% 채워 봐요</span>
+      </div>
+    </section>
+
+    <section class="play-area" id="playArea" aria-label="골든 리트리버와 교감하기">
+      <div class="scene-sun" aria-hidden="true"></div>
+      <div class="scene-moon" aria-hidden="true"></div>
+      <div class="cloud cloud-one" aria-hidden="true"></div>
+      <div class="cloud cloud-two" aria-hidden="true"></div>
+      <div class="sky-stars" aria-hidden="true">
+        <span class="sky-star" style="top:15%;left:23%">✦</span>
+        <span class="sky-star" style="top:26%;left:43%">✧</span>
+        <span class="sky-star" style="top:17%;left:68%">✦</span>
+        <span class="sky-star" style="top:37%;left:82%">✧</span>
+        <span class="sky-star" style="top:44%;left:16%">✦</span>
+        <span class="sky-star" style="top:10%;left:51%">✧</span>
+        <span class="sky-star" style="top:31%;left:60%">✦</span>
+        <span class="sky-star" style="top:49%;left:73%">✧</span>
+        <span class="sky-star" style="top:12%;left:86%">✦</span>
+      </div>
+      <div class="scene-intro">
+        <div class="scene-controls">
+          <span class="time-chip" id="timeChip">☀ 낮의 포근한 시간</span>
+          <button class="day-night-button" id="dayNightButton" type="button" aria-label="밤 배경으로 전환">☾ 밤 보기</button>
+        </div>
+        <p class="scene-message" id="sceneMessage">반가워요! 머리를 쓰다듬어 주세요.</p>
+      </div>
+      <div class="ground-shadow" aria-hidden="true"></div>
+      <div class="dog-wrap">
+        <svg class="dog-svg" id="dogSvg" viewBox="0 0 600 520" role="img" aria-label="앉아서 반갑게 바라보는 골든 리트리버. 머리 부분을 문질러 쓰다듬어 주세요.">
+          <defs>
+            <linearGradient id="fur" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f9d58b"/><stop offset=".55" stop-color="#e9ad59"/><stop offset="1" stop-color="#c98037"/></linearGradient>
+            <linearGradient id="furLight" x1="0" y1="0" x2=".8" y2="1"><stop offset="0" stop-color="#ffe8b1"/><stop offset="1" stop-color="#edbd71"/></linearGradient>
+            <linearGradient id="ear" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d89447"/><stop offset="1" stop-color="#a85f30"/></linearGradient>
+            <linearGradient id="muzzle" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff1d8"/><stop offset="1" stop-color="#e9c99c"/></linearGradient>
+            <filter id="dogShadow" x="-30%" y="-30%" width="160%" height="170%"><feGaussianBlur stdDeviation="5"/></filter>
+          </defs>
+
+          <!-- 낮: 반갑게 앉아 있는 모습 -->
+          <g class="day-dog">
+            <ellipse cx="300" cy="478" rx="151" ry="15" fill="#8e734f" opacity=".12" filter="url(#dogShadow)"/>
+            <path d="M404 351 C470 330 484 376 458 404 C445 419 426 412 425 397 C452 397 455 375 433 371 C417 368 405 384 394 391Z" fill="url(#fur)"/>
+            <ellipse cx="300" cy="361" rx="130" ry="128" fill="url(#fur)"/>
+            <ellipse cx="220" cy="402" rx="69" ry="68" fill="#e6a653"/>
+            <ellipse cx="382" cy="402" rx="69" ry="68" fill="#d99143"/>
+            <path d="M240 307 C240 278 258 264 279 270 C293 274 302 290 301 318 L299 444 C298 466 282 474 263 467 C245 461 239 448 239 425Z" fill="url(#furLight)"/>
+            <path d="M360 307 C360 278 342 264 321 270 C307 274 298 290 299 318 L301 444 C302 466 318 474 337 467 C355 461 361 448 361 425Z" fill="#f1ca83"/>
+            <ellipse cx="300" cy="373" rx="79" ry="112" fill="#fff0d5" opacity=".88"/>
+            <path d="M252 442 Q300 465 348 442" fill="none" stroke="#dca45e" stroke-width="7" stroke-linecap="round" opacity=".5"/>
+            <ellipse cx="212" cy="466" rx="57" ry="23" fill="#e9b66e"/>
+            <ellipse cx="388" cy="466" rx="57" ry="23" fill="#e4a85a"/>
+            <path d="M171 462 Q210 480 251 464" fill="none" stroke="#c98944" stroke-width="3" opacity=".5"/>
+            <path d="M349 464 Q390 480 429 462" fill="none" stroke="#c98944" stroke-width="3" opacity=".5"/>
+            <g class="head-group">
+              <path d="M211 141 C177 111 172 175 195 223 C210 254 242 249 252 224 L247 170Z" fill="url(#ear)"/>
+              <path d="M389 141 C423 111 428 175 405 223 C390 254 358 249 348 224 L353 170Z" fill="url(#ear)"/>
+              <path d="M219 155 C196 143 195 184 216 219 C229 236 242 226 244 210Z" fill="#b86e39" opacity=".5"/>
+              <path d="M381 155 C404 143 405 184 384 219 C371 236 358 226 356 210Z" fill="#b86e39" opacity=".5"/>
+              <path d="M300 94 C238 94 197 132 198 194 C199 254 238 293 300 294 C362 293 401 254 402 194 C403 132 362 94 300 94Z" fill="url(#furLight)"/>
+              <ellipse cx="300" cy="226" rx="85" ry="63" fill="#f5d9a9" opacity=".55"/>
+              <path d="M229 174 Q244 156 262 171" fill="none" stroke="#bd7f41" stroke-width="7" stroke-linecap="round" opacity=".25"/>
+              <path d="M338 171 Q356 156 371 174" fill="none" stroke="#bd7f41" stroke-width="7" stroke-linecap="round" opacity=".25"/>
+              <g class="normal-face">
+                <ellipse cx="260" cy="191" rx="8" ry="11" fill="#49352d"/>
+                <ellipse cx="340" cy="191" rx="8" ry="11" fill="#49352d"/>
+                <circle cx="263" cy="187" r="2.5" fill="#fff"/><circle cx="343" cy="187" r="2.5" fill="#fff"/>
+                <path d="M284 219 Q300 210 316 219 Q312 239 300 241 Q288 239 284 219Z" fill="#4b322b"/>
+                <path d="M300 240 Q298 254 283 256" fill="none" stroke="#704539" stroke-width="3.5" stroke-linecap="round"/>
+                <path d="M300 240 Q302 254 317 256" fill="none" stroke="#704539" stroke-width="3.5" stroke-linecap="round"/>
+                <path d="M267 245 Q280 253 289 248 M333 245 Q320 253 311 248" fill="none" stroke="#c48d58" stroke-width="2" opacity=".6"/>
+              </g>
+              <g class="happy-face">
+                <path d="M248 194 Q260 205 272 194" fill="none" stroke="#49352d" stroke-width="5" stroke-linecap="round"/>
+                <path d="M328 194 Q340 205 352 194" fill="none" stroke="#49352d" stroke-width="5" stroke-linecap="round"/>
+                <path d="M282 218 Q300 210 318 218 Q314 240 300 241 Q286 240 282 218Z" fill="#4b322b"/>
+                <path d="M300 240 Q300 258 282 256 Q300 274 318 256 Q300 258 300 240Z" fill="#c85d63"/>
+                <path d="M300 247 Q299 255 289 258" fill="none" stroke="#704539" stroke-width="2.5" stroke-linecap="round"/>
+                <ellipse cx="236" cy="224" rx="13" ry="7" fill="#e98f81" opacity=".32"/><ellipse cx="364" cy="224" rx="13" ry="7" fill="#e98f81" opacity=".32"/>
+              </g>
+              <ellipse class="pet-zone" cx="300" cy="185" rx="126" ry="105" fill="#fff" fill-opacity="0" pointer-events="all"/>
+            </g>
+          </g>
+
+          <!-- 밤: 편안하게 엎드려 잠든 모습 -->
+          <g class="night-dog">
+            <ellipse cx="319" cy="474" rx="180" ry="14" fill="#101a31" opacity=".2" filter="url(#dogShadow)"/>
+            <path d="M168 390 C115 382 110 428 148 443 C176 454 203 437 205 418" fill="none" stroke="#c9863d" stroke-width="35" stroke-linecap="round"/>
+            <ellipse cx="315" cy="393" rx="181" ry="91" fill="url(#fur)"/>
+            <ellipse cx="260" cy="390" rx="107" ry="72" fill="#f0c27b"/>
+            <path d="M246 355 Q284 326 329 354 Q353 377 342 439 Q302 462 260 440 Q236 409 246 355Z" fill="#fff0d5"/>
+            <ellipse cx="441" cy="434" rx="61" ry="24" fill="#e6ad61"/>
+            <ellipse cx="345" cy="448" rx="67" ry="23" fill="#f0c27b"/>
+            <path d="M395 438 Q439 452 482 434" fill="none" stroke="#bf7c3c" stroke-width="3" opacity=".45"/>
+            <g class="head-group">
+              <path d="M333 254 C308 223 289 246 301 293 C310 328 345 342 363 320 L371 279Z" fill="url(#ear)"/>
+              <path d="M440 249 C475 225 493 270 467 315 C449 342 420 337 408 310 L412 275Z" fill="url(#ear)"/>
+              <path d="M338 270 C352 229 418 220 456 253 C489 281 475 335 443 357 C407 383 350 364 331 329 C319 308 323 288 338 270Z" fill="url(#furLight)"/>
+              <ellipse cx="410" cy="334" rx="59" ry="35" fill="#f6dfbc"/>
+              <g class="sleep-face">
+                <path d="M365 295 Q378 306 390 296" fill="none" stroke="#523a30" stroke-width="5" stroke-linecap="round"/>
+                <path d="M425 294 Q438 304 450 292" fill="none" stroke="#523a30" stroke-width="5" stroke-linecap="round"/>
+                <path d="M394 331 Q410 321 427 331 Q423 347 410 348 Q398 347 394 331Z" fill="#4a332d"/>
+                <path d="M410 348 Q410 359 398 358" fill="none" stroke="#76503d" stroke-width="3" stroke-linecap="round"/>
+              </g>
+              <g class="awake-face">
+                <ellipse cx="378" cy="296" rx="7" ry="10" fill="#49352d"/><ellipse cx="439" cy="294" rx="7" ry="10" fill="#49352d"/>
+                <circle cx="380" cy="293" r="2" fill="#fff"/><circle cx="441" cy="291" r="2" fill="#fff"/>
+                <path d="M394 329 Q410 320 427 329 Q423 345 410 346 Q398 345 394 329Z" fill="#4a332d"/>
+                <path d="M410 346 Q410 365 392 357 Q410 375 429 357 Q410 365 410 346Z" fill="#c85d63"/>
+              </g>
+              <ellipse class="pet-zone" cx="404" cy="294" rx="106" ry="91" fill="#fff" fill-opacity="0" pointer-events="all"/>
+            </g>
+            <g class="zzz" fill="#f7f0cf" font-family="sans-serif" font-weight="800">
+              <text x="473" y="205" font-size="28">Z</text>
+              <text class="zzz-two" x="502" y="174" font-size="20">z</text>
+            </g>
+          </g>
+        </svg>
+      </div>
+      <div class="sparkle-layer" id="sparkleLayer" aria-hidden="true"></div>
+      <p class="pet-hint">강아지 머리를 살살 문질러 주세요 ✦</p>
+    </section>
+
+    <p class="footer-note">기쁨 게이지는 매일 자정(00:00)에 새롭게 시작돼요.</p>
+  </main>
+  <div class="celebration" id="celebration" aria-hidden="true"></div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const STORAGE_KEY = 'golden-retriever-joy-v1';
+      const progressNumber = document.getElementById('progressNumber');
+      const progressFill = document.getElementById('progressFill');
+      const progressTrack = document.getElementById('progressTrack');
+      const statusText = document.getElementById('statusText');
+      const sceneMessage = document.getElementById('sceneMessage');
+      const timeChip = document.getElementById('timeChip');
+      const dogSvg = document.getElementById('dogSvg');
+      const playArea = document.getElementById('playArea');
+      const sparkleLayer = document.getElementById('sparkleLayer');
+      const celebration = document.getElementById('celebration');
+      const soundButton = document.getElementById('soundButton');
+      const dayNightButton = document.getElementById('dayNightButton');
+      const themeColor = document.querySelector('meta[name="theme-color"]');
+      const soundLabel = document.getElementById('soundLabel');
+      const soundIcon = document.getElementById('soundIcon');
+
+      let joy = 0;
+      // 기기 현지 날짜가 바뀌는 순간(00:00)에 하루 진행도를 초기화합니다.
+      let savedDate = localDateKey();
+      let isDay = true;
+      let manualSceneOverride = false;
+      let isPetting = false;
+      let pointerInsideHead = false;
+      let pettingStartedAt = 0;
+      let lastPettingTickAt = 0;
+      let pettingJoyRemainder = 0;
+      let pettingTimer = null;
+      let lastPointer = null;
+      let happyTimer = null;
+      let resetTimer = null;
+      let celebrationTimer = null;
+      let audioContext = null;
+      let masterGain = null;
+      let musicTimer = null;
+      let musicStep = 0;
+      let soundOn = false;
+
+      function localDateKey(date = new Date()) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+
+      // 하루의 기준은 기기 현지 날짜 그 자체입니다. 00:00이 되면 날짜 키가 바뀝니다.
+      function resetPeriodKey(date = new Date()) {
+        return localDateKey(date);
+      }
+
+      function loadProgress() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+          if (saved && saved.date === savedDate && Number.isFinite(saved.joy)) {
+            joy = Math.max(0, Math.min(100, Math.round(saved.joy)));
+          } else {
+            joy = 0;
+            saveProgress();
+          }
+        } catch (_) {
+          joy = 0;
+        }
+        renderProgress();
+      }
+
+      function saveProgress() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ date: savedDate, joy }));
+        } catch (_) {
+          // 로컬 저장소를 사용할 수 없는 환경에서도 현재 탭에서는 정상 동작합니다.
+        }
+      }
+
+      function renderProgress() {
+        progressNumber.textContent = `${joy}%`;
+        progressFill.style.width = `${joy}%`;
+        progressTrack.setAttribute('aria-valuenow', String(joy));
+        updateStatus();
+      }
+
+      function updateStatus() {
+        if (joy >= 100) {
+          statusText.textContent = '오늘의 행복 미션을 달성했어요!';
+          sceneMessage.textContent = '오늘은 행복이 가득해요. 마음껏 쉬어 가세요.';
+        } else if (dogSvg.classList.contains('is-happy')) {
+          statusText.textContent = '기분 좋은 쓰다듬이에요!';
+          sceneMessage.textContent = '기분이 좋아요! 조금 더 쓰다듬어 주세요.';
+        } else if (isDay) {
+          statusText.textContent = '머리를 살살 쓰다듬어 주세요.';
+          sceneMessage.textContent = '반가워요! 머리를 쓰다듬어 주세요.';
+        } else {
+          statusText.textContent = '잠든 강아지를 살살 쓰다듬어 주세요.';
+          sceneMessage.textContent = '꿈나라에 있어요. 조심스럽게 쓰다듬어 주세요.';
+        }
+      }
+
+      function applyScene() {
+        document.body.classList.toggle('is-night', !isDay);
+        document.documentElement.classList.toggle('is-day-dim', isDay);
+        if (isDay) {
+          timeChip.textContent = '☀ 낮의 포근한 시간';
+          dayNightButton.textContent = '☾ 밤 보기';
+          dayNightButton.setAttribute('aria-label', '밤 배경으로 전환');
+          dogSvg.setAttribute('aria-label', '앉아서 반갑게 바라보는 골든 리트리버. 머리 부분을 문질러 쓰다듬어 주세요.');
+          if (themeColor) themeColor.setAttribute('content', '#b2c1cc');
+        } else {
+          timeChip.textContent = '☾ 고요한 밤 시간';
+          dayNightButton.textContent = '☀ 낮 보기';
+          dayNightButton.setAttribute('aria-label', '낮 배경으로 전환');
+          dogSvg.setAttribute('aria-label', '편안하게 엎드려 잠든 골든 리트리버. 머리 부분을 문질러 쓰다듬어 주세요.');
+          if (themeColor) themeColor.setAttribute('content', '#17264a');
+        }
+        updateStatus();
+      }
+
+      function toggleDayNight() {
+        manualSceneOverride = true;
+        isDay = !isDay;
+        applyScene();
+      }
+
+      function updateTimeAndDate() {
+        const currentPeriod = resetPeriodKey();
+        if (currentPeriod !== savedDate) {
+          savedDate = currentPeriod;
+          joy = 0;
+          manualSceneOverride = false;
+          saveProgress();
+          renderProgress();
+          celebration.classList.remove('active');
+          celebration.replaceChildren();
+        }
+        // 직접 낮/밤을 바꾼 경우에는 다음 자정 리셋 시각까지 선택한 장면을 유지합니다.
+        // 리셋 시각이 되거나 페이지를 다시 열면 기기의 실제 시각에 맞춥니다.
+        if (!manualSceneOverride) {
+          const hour = new Date().getHours();
+          const nextIsDay = hour >= 6 && hour < 18;
+          if (nextIsDay !== isDay) {
+            isDay = nextIsDay;
+            applyScene();
+          }
+        }
+      }
+
+      function scheduleDailyReset() {
+        if (resetTimer) clearTimeout(resetTimer);
+
+        // 다음 현지 자정(00:00:00)을 직접 계산합니다.
+        const now = new Date();
+        const nextMidnight = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() + 1,
+          0, 0, 0, 0
+        );
+        const delay = Math.max(250, nextMidnight.getTime() - now.getTime() + 100);
+
+        resetTimer = setTimeout(() => {
+          updateTimeAndDate();
+          scheduleDailyReset();
+        }, delay);
+      }
+
+      function setHappy() {
+        dogSvg.classList.add('is-happy');
+        if (happyTimer) clearTimeout(happyTimer);
+        happyTimer = setTimeout(() => {
+          dogSvg.classList.remove('is-happy');
+          updateStatus();
+        }, 1450);
+        updateStatus();
+      }
+
+      function addJoy(amount = 1) {
+        if (joy >= 100) return;
+        const previous = joy;
+        joy = Math.min(100, joy + amount);
+        saveProgress();
+        renderProgress();
+        if (previous < 100 && joy === 100) launchHearts();
+      }
+
+      function pointInHead(clientX, clientY) {
+        const rect = dogSvg.getBoundingClientRect();
+        if (!rect.width || !rect.height) return false;
+        const x = (clientX - rect.left) * 600 / rect.width;
+        const y = (clientY - rect.top) * 520 / rect.height;
+        if (isDay) {
+          const dx = (x - 300) / 126;
+          const dy = (y - 185) / 105;
+          return dx * dx + dy * dy <= 1;
+        }
+        // 밤 일러스트는 SVG 뷰박스 중심 기준 70%로 정규화했으므로 터치 영역도 같은 비율로 맞춥니다.
+        const dx = (x - 372.8) / 74.2;
+        const dy = (y - 283.8) / 63.7;
+        return dx * dx + dy * dy <= 1;
+      }
+
+      function makeSparkle(clientX, clientY) {
+        const rect = playArea.getBoundingClientRect();
+        const star = document.createElement('span');
+        star.className = 'sparkle';
+        star.textContent = Math.random() > .55 ? '✦' : '✧';
+        const spreadX = (Math.random() - .5) * 62;
+        const spreadY = (Math.random() - .5) * 48;
+        star.style.left = `${clientX - rect.left + spreadX}px`;
+        star.style.top = `${clientY - rect.top + spreadY}px`;
+        star.style.fontSize = `${12 + Math.random() * 13}px`;
+        sparkleLayer.appendChild(star);
+        setTimeout(() => star.remove(), 950);
+      }
+
+      function updatePettingProgress() {
+        if (!isPetting) return;
+        const now = Date.now();
+        const deltaSeconds = Math.max(0, (now - lastPettingTickAt) / 1000);
+        lastPettingTickAt = now;
+        if (!pointerInsideHead || joy >= 100 || deltaSeconds === 0) return;
+
+        // 오래 쓰다듬을수록 초당 증가량이 커지며, 최대 초당 약 6.6%까지 빨라집니다.
+        const elapsedSeconds = Math.max(0, (now - pettingStartedAt) / 1000);
+        const pointsPerSecond = 2.4 + Math.min(elapsedSeconds * 0.3, 4.2);
+        pettingJoyRemainder += pointsPerSecond * deltaSeconds;
+        const wholePoints = Math.floor(pettingJoyRemainder);
+        if (wholePoints >= 1) {
+          pettingJoyRemainder -= wholePoints;
+          addJoy(wholePoints);
+          setHappy();
+        }
+      }
+
+      function stopPettingProgress() {
+        isPetting = false;
+        pointerInsideHead = false;
+        lastPointer = null;
+        if (pettingTimer) clearInterval(pettingTimer);
+        pettingTimer = null;
+      }
+
+      function beginPetting(event) {
+        if (!pointInHead(event.clientX, event.clientY)) return;
+        event.preventDefault();
+        isPetting = true;
+        pointerInsideHead = true;
+        pettingStartedAt = Date.now();
+        lastPettingTickAt = pettingStartedAt;
+        pettingJoyRemainder = 0;
+        lastPointer = { x: event.clientX, y: event.clientY };
+        try { dogSvg.setPointerCapture(event.pointerId); } catch (_) {}
+        setHappy();
+        addJoy(1);
+        makeSparkle(event.clientX, event.clientY);
+        if (pettingTimer) clearInterval(pettingTimer);
+        pettingTimer = setInterval(updatePettingProgress, 100);
+      }
+
+      function movePetting(event) {
+        if (!isPetting) return;
+        pointerInsideHead = pointInHead(event.clientX, event.clientY);
+        if (!pointerInsideHead) {
+          lastPointer = { x: event.clientX, y: event.clientY };
+          return;
+        }
+        const moved = !lastPointer || Math.hypot(event.clientX - lastPointer.x, event.clientY - lastPointer.y) > 5;
+        if (moved) makeSparkle(event.clientX, event.clientY);
+        lastPointer = { x: event.clientX, y: event.clientY };
+      }
+
+      function endPetting(event) {
+        if (!isPetting) return;
+        stopPettingProgress();
+        try {
+          if (dogSvg.hasPointerCapture(event.pointerId)) dogSvg.releasePointerCapture(event.pointerId);
+        } catch (_) {}
+      }
+
+      function launchHearts() {
+        celebration.replaceChildren();
+        celebration.classList.add('active');
+        const symbols = ['♥', '♡', '❤'];
+        for (let i = 0; i < 44; i++) {
+          const heart = document.createElement('span');
+          heart.className = 'heart';
+          heart.textContent = symbols[i % symbols.length];
+          heart.style.left = `${Math.random() * 100}%`;
+          heart.style.fontSize = `${17 + Math.random() * 31}px`;
+          heart.style.animationDelay = `${Math.random() * .9}s`;
+          heart.style.setProperty('--duration', `${3.1 + Math.random() * 1.8}s`);
+          heart.style.setProperty('--drift', `${(Math.random() - .5) * 170}px`);
+          heart.style.setProperty('--spin', `${(Math.random() - .5) * 130}deg`);
+          celebration.appendChild(heart);
+        }
+        if (celebrationTimer) clearTimeout(celebrationTimer);
+        celebrationTimer = setTimeout(() => {
+          celebration.classList.remove('active');
+          celebration.replaceChildren();
+        }, 5200);
+      }
+
+      // Web Audio API로 별도 음원 파일 없이 잔잔한 배경음을 만듭니다.
+      function playTone(frequency, startAt, duration, volume, type = 'sine') {
+        if (!audioContext || !masterGain) return;
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        oscillator.type = type;
+        oscillator.frequency.setValueAtTime(frequency, startAt);
+        gain.gain.setValueAtTime(0.0001, startAt);
+        gain.gain.linearRampToValueAtTime(volume, startAt + 0.22);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+        oscillator.connect(gain);
+        gain.connect(masterGain);
+        oscillator.start(startAt);
+        oscillator.stop(startAt + duration + 0.04);
+      }
+
+      const chords = [
+        [261.63, 329.63, 392.00, 523.25],
+        [220.00, 261.63, 329.63, 440.00],
+        [174.61, 220.00, 261.63, 349.23],
+        [196.00, 246.94, 293.66, 392.00]
+      ];
+
+      function playMusicCycle() {
+        if (!audioContext || !soundOn) return;
+        const chord = chords[musicStep % chords.length];
+        const start = audioContext.currentTime + 0.06;
+        chord.slice(0, 3).forEach((frequency, index) => {
+          playTone(frequency / 2, start, 5.4, 0.042 - index * 0.005, 'sine');
+        });
+        const notes = [chord[1], chord[2], chord[3], chord[2], chord[1], chord[0], chord[2], chord[1]];
+        notes.forEach((frequency, index) => {
+          playTone(frequency, start + index * 0.66, 1.18, 0.032, 'sine');
+        });
+        musicStep++;
+      }
+
+      async function toggleSound() {
+        if (!soundOn) {
+          try {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) throw new Error('Web Audio API를 지원하지 않습니다.');
+            if (!audioContext) {
+              audioContext = new AudioContextClass();
+              masterGain = audioContext.createGain();
+              masterGain.gain.value = 0;
+              masterGain.connect(audioContext.destination);
+            }
+            await audioContext.resume();
+            soundOn = true;
+            masterGain.gain.cancelScheduledValues(audioContext.currentTime);
+            masterGain.gain.setTargetAtTime(0.86, audioContext.currentTime, 0.7);
+            musicStep = 0;
+            playMusicCycle();
+            musicTimer = setInterval(playMusicCycle, 5300);
+            soundLabel.textContent = '배경음 끄기';
+            soundButton.setAttribute('aria-label', '배경음 끄기');
+            soundButton.setAttribute('aria-pressed', 'true');
+            soundIcon.innerHTML = '<path d="M4 10v4h4l5 4V6l-5 4H4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M17 9.5a4 4 0 0 1 0 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M19.5 7a7.5 7.5 0 0 1 0 10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>';
+          } catch (_) {
+            soundOn = false;
+            soundLabel.textContent = '배경음 켜기';
+          }
+        } else {
+          soundOn = false;
+          if (musicTimer) clearInterval(musicTimer);
+          musicTimer = null;
+          if (audioContext && masterGain) {
+            masterGain.gain.cancelScheduledValues(audioContext.currentTime);
+            masterGain.gain.setTargetAtTime(0.0001, audioContext.currentTime, 0.18);
+          }
+          soundLabel.textContent = '배경음 켜기';
+          soundButton.setAttribute('aria-label', '배경음 켜기');
+          soundButton.setAttribute('aria-pressed', 'false');
+          soundIcon.innerHTML = '<path d="M4 10v4h4l5 4V6l-5 4H4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m17 9 5 6m0-6-5 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>';
+        }
+      }
+
+      dogSvg.addEventListener('pointerdown', beginPetting);
+      dogSvg.addEventListener('pointermove', movePetting);
+      dogSvg.addEventListener('pointerup', endPetting);
+      dogSvg.addEventListener('pointercancel', endPetting);
+      dogSvg.addEventListener('lostpointercapture', stopPettingProgress);
+      soundButton.addEventListener('click', toggleSound);
+      dayNightButton.addEventListener('click', toggleDayNight);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          updateTimeAndDate();
+          scheduleDailyReset();
+        }
+      });
+      window.addEventListener('focus', () => {
+        updateTimeAndDate();
+        scheduleDailyReset();
+      });
+
+      loadProgress();
+      isDay = new Date().getHours() >= 6 && new Date().getHours() < 18;
+      applyScene();
+      scheduleDailyReset();
+      // 시스템 시각을 수동 변경했거나 브라우저 타이머가 지연돼도 날짜 변경을 감지합니다.
+      setInterval(updateTimeAndDate, 15000);
+    })();
+  </script>
+</body>
+</html>
